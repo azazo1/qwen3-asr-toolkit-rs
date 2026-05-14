@@ -6,6 +6,7 @@ use base64::Engine as _;
 use rand::prelude::RngExt;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
+use tracing::{debug, warn};
 
 use crate::language::{code_to_language_name, normalize_language_code};
 use crate::text::post_text_process;
@@ -51,15 +52,16 @@ impl QwenAsrClient {
                 Ok(result) => return Ok(result),
                 Err(error) => {
                     last_error = error.to_string();
-                    eprintln!("Error: {}", error);
                     if last_error.contains("DataInspectionFailed") {
-                        eprintln!(
-                            "DataInspectionFailed! Invalid input audio \"{}\"",
-                            audio_path.display()
-                        );
+                        warn!("data inspection failed for {}", audio_path.display());
                         break;
                     }
-                    eprintln!("Retry {}... {}", attempt + 1, audio_path.display());
+                    debug!(
+                        "asr request failed on attempt {} for {}: {}",
+                        attempt + 1,
+                        audio_path.display(),
+                        error
+                    );
                 }
             }
 

@@ -12,7 +12,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use futures::stream::{self, StreamExt};
 use tokio::fs;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::api::QwenAsrClient;
 use crate::audio::{AudioChunk, load_audio, save_audio_file};
@@ -127,7 +127,7 @@ pub async fn run(cli: Cli) -> Result<()> {
 
     if !cli.silence {
         info!("Detected Language: {}", detected_language);
-        info!("Full Transcription: {}", full_text);
+        debug!("full transcription: {}", full_text);
     }
 
     let save_file = output_text_file(&input)?;
