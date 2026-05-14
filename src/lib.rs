@@ -18,7 +18,7 @@ use crate::api::QwenAsrClient;
 use crate::audio::{AudioChunk, load_audio, save_audio_file};
 use crate::cli::{Cli, parse_args};
 use crate::language::majority_language;
-use crate::logging::init_tracing;
+use crate::logging::{init_ort_logging, init_tracing};
 use crate::text::write_srt;
 use crate::vad::VadEngine;
 
@@ -27,6 +27,7 @@ const MAX_API_AUDIO_SECONDS: f32 = 180.0;
 pub async fn run_cli() -> Result<()> {
     let cli = parse_args();
     init_tracing(cli.silence);
+    init_ort_logging();
     run(cli).await
 }
 

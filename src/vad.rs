@@ -27,7 +27,6 @@ impl VadEngine {
             bail!("silero vad model not found: {}", model_path.display());
         }
 
-        let _ = ort::init().commit();
         let mut builder = Session::builder()?;
         builder = builder
             .with_optimization_level(GraphOptimizationLevel::Level3)
