@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use base64::Engine as _;
-use rand::Rng;
+use rand::prelude::RngExt;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
