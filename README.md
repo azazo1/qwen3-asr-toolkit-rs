@@ -77,7 +77,7 @@
 - [src/logging.rs](/Users/azazo1/pjs/rust/qwen3-asr-toolkit/src/logging.rs)
   日志初始化, 进度条, ONNX Runtime 日志重映射
 - [assets/silero_vad.onnx](/Users/azazo1/pjs/rust/qwen3-asr-toolkit/assets/silero_vad.onnx)
-  本地 VAD 模型文件
+  编译期嵌入到可执行文件中的 VAD 模型源文件
 
 ## 整体流程
 
@@ -190,7 +190,7 @@ export DASHSCOPE_API_KEY="your_api_key_here"
 
 目前这个 Rust 版实现已经覆盖原 Python 项目的主干逻辑, 但仍有几个实现层面的特点需要注意:
 
-- Silero VAD 模型当前以外部文件形式放在 `assets/` 目录中, 不是内嵌到可执行文件
+- Silero VAD 模型通过 `include_bytes!` 在编译期嵌入可执行文件, 运行时不再依赖外部模型路径
 - 默认日志只保留关键流程信息, ONNX Runtime 的内部 `info` 已经被压到 `debug`
 - 音频解码走的是 `ffmpeg -> s16le PCM -> Rust 手动解码`, 避免了管道 WAV 头解析不稳定的问题
 - 远程 URL 输入的头部可访问性检查已实现, 但日常验证主要还是围绕本地文件路径
@@ -207,7 +207,6 @@ RUSTC_WRAPPER= cargo run -- --help
 
 ## 后续可继续完善的方向
 
-- 将 ONNX 模型内嵌到可执行文件
 - 增加真正的端到端集成测试
 - 进一步优化远程输入的处理方式
 - 为输出和日志增加更细粒度的配置

@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result, bail};
@@ -15,6 +14,7 @@ const MIN_SPEECH_DURATION_MS: usize = 1500;
 const MIN_SILENCE_DURATION_MS: usize = 500;
 const WINDOW_SIZE_SAMPLES: usize = 512;
 const CONTEXT_SIZE_SAMPLES: usize = 64;
+const SILERO_VAD_MODEL_BYTES: &[u8] = include_bytes!("../assets/silero_vad.onnx");
 
 pub struct VadEngine {
     model: Mutex<VadModel>,
@@ -22,11 +22,6 @@ pub struct VadEngine {
 
 impl VadEngine {
     pub fn new() -> Result<Self> {
-        let model_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/silero_vad.onnx");
-        if !model_path.exists() {
-            bail!("silero vad model not found: {}", model_path.display());
-        }
-
         let mut builder = Session::builder()?;
         builder = builder
             .with_optimization_level(GraphOptimizationLevel::Level3)
@@ -34,7 +29,7 @@ impl VadEngine {
         builder = builder
             .with_intra_threads(1)
             .unwrap_or_else(|error| error.recover());
-        let session = builder.commit_from_file(&model_path)?;
+        let session = builder.commit_from_memory(SILERO_VAD_MODEL_BYTES)?;
 
         Ok(Self {
             model: Mutex::new(VadModel::new(session)),
