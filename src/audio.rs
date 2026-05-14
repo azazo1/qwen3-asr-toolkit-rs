@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -50,10 +49,8 @@ fn load_audio_blocking(file_path: &str) -> Result<LoadedAudio> {
         .arg(WAV_SAMPLE_RATE.to_string())
         .arg("-ac")
         .arg("1")
-        .arg("-c:a")
-        .arg("pcm_s16le")
         .arg("-f")
-        .arg("wav")
+        .arg("s16le")
         .arg("-")
         .output()
         .with_context(|| format!("failed to run ffmpeg for {}", file_path))?;
@@ -63,35 +60,8 @@ fn load_audio_blocking(file_path: &str) -> Result<LoadedAudio> {
         bail!("FFmpeg error processing '{}': {}", file_path, stderr.trim());
     }
 
-    let cursor = Cursor::new(output.stdout);
-    let mut reader = hound::WavReader::new(cursor).context("failed to decode ffmpeg wav output")?;
-    let spec = reader.spec();
-    if spec.channels != 1 || spec.sample_rate != WAV_SAMPLE_RATE {
-        bail!(
-            "unexpected ffmpeg wav output: channels={}, sample_rate={}",
-            spec.channels,
-            spec.sample_rate
-        );
-    }
-
-    let samples = match (spec.sample_format, spec.bits_per_sample) {
-        (hound::SampleFormat::Int, 16) => reader
-            .samples::<i16>()
-            .map(|sample| sample.map(|value| value as f32 / i16::MAX as f32))
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to read 16-bit pcm samples")?,
-        (hound::SampleFormat::Float, 32) => reader
-            .samples::<f32>()
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .context("failed to read float pcm samples")?,
-        _ => {
-            bail!(
-                "unsupported wav format from ffmpeg: {:?} {} bits",
-                spec.sample_format,
-                spec.bits_per_sample
-            );
-        }
-    };
+    let samples = decode_pcm_s16le(&output.stdout)
+        .context("failed to decode ffmpeg pcm output")?;
 
     let file_name = input_file_name(file_path);
     let file_stem = Path::new(&file_name)
@@ -105,6 +75,23 @@ fn load_audio_blocking(file_path: &str) -> Result<LoadedAudio> {
         file_name,
         file_stem,
     })
+}
+
+fn decode_pcm_s16le(bytes: &[u8]) -> Result<Vec<f32>> {
+    if !bytes.len().is_multiple_of(2) {
+        bail!(
+            "ffmpeg pcm output has odd byte length {}, expected 16-bit aligned data",
+            bytes.len()
+        );
+    }
+
+    Ok(bytes
+        .chunks_exact(2)
+        .map(|chunk| {
+            let pcm = i16::from_le_bytes([chunk[0], chunk[1]]);
+            pcm as f32 / i16::MAX as f32
+        })
+        .collect())
 }
 
 fn save_audio_file_blocking(wav: &[f32], file_path: &Path) -> Result<()> {
@@ -150,4 +137,19 @@ fn input_file_name(input: &str) -> String {
         .unwrap_or_else(|| OsStr::new("audio.wav"))
         .to_string_lossy()
         .into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_pcm_s16le;
+
+    #[test]
+    fn decode_pcm_s16le_reads_samples() {
+        let bytes = [0_u8, 0_u8, 255_u8, 127_u8, 0_u8, 128_u8];
+        let samples = decode_pcm_s16le(&bytes).expect("decoded pcm");
+        assert_eq!(samples.len(), 3);
+        assert_eq!(samples[0], 0.0);
+        assert!(samples[1] > 0.99);
+        assert!(samples[2] < -0.99);
+    }
 }
