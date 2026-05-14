@@ -157,9 +157,8 @@ pub async fn run(cli: Cli) -> Result<()> {
         );
     } else {
         println!(
-            "SRT subtitles of \"{}\" from Qwen3-ASR-Flash API saved to \"{}\"!",
-            input,
-            save_dir.display()
+            "SRT subtitles were not generated for \"{}\". Use --save-srt to save subtitle output.",
+            input
         );
     }
 
